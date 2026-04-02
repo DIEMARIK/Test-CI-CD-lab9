@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  DOTNET_VERSION: '8.0.x'
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -18,49 +15,36 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore
-        run: dotnet restore lab9.1.sln
+          dotnet-version: 8.0.x
 
       - name: Build
-        run: dotnet build lab9.1.sln --configuration Release --no-restore
+        run: dotnet build src/lab9.1.csproj --configuration Release
 
       - name: Run tests with coverage
         run: |
-          dotnet test tests/lab9.1.csproj \
+          dotnet test tests/lab9.1.Tests.csproj \
             --configuration Release \
-            --no-build \
+            --verbosity normal \
             --collect:"XPlat Code Coverage" \
-            --results-directory ./TestResults
+            --settings:coverlet.runsettings
 
-      - name: Install ReportGenerator
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
-
-      - name: Generate report
+      - name: Generate coverage report
         run: |
-          COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" | head -1)
-          
-          if [ -f "$COVERAGE_FILE" ]; then
-            reportgenerator -reports:"$COVERAGE_FILE" -targetdir:"./CoverageReport" -reporttypes:"Html"
-            echo "✅ Report generated"
-          else
-            echo "⚠️ No coverage file found"
-            mkdir -p ./CoverageReport
-            echo "<html><body><h1>No coverage data</h1></body></html>" > ./CoverageReport/index.html
-          fi
+          # Устанавливаем ReportGenerator, если его нет
+          dotnet tool install -g dotnet-reportgenerator-globaltool
 
-      - name: Upload reports
+          # Генерируем HTML‑отчёт из результатов Coverlet
+          reportgenerator \
+            -reports:**/coverage.cobertura.xml \
+            -targetdir:coveragereport \
+            -reporttypes:HTML
+
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: ./CoverageReport
-          retention-days: 7
+          path: coveragereport/
+          retention-days: 14
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: ./TestResults
-          retention-days: 7
+      - name: Display coverage summary
+        run: cat coveragereport/index.html | grep -A 10 "Coverage Summary" || echo "Coverage summary not found"
