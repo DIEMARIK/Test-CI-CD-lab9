@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-<PackageReference Include="Microsoft.ApplicationInsights" Version="2.21.0" />
+
   </PropertyGroup>
 
   <ItemGroup>
