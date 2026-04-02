@@ -21,7 +21,7 @@ jobs:
         run: dotnet build src/lab9.1.csproj --configuration Release
 
       - name: Run tests
-        run: dotnet test lab9.1.csproj --configuration Release --verbosity normal
+        run: dotnet test src/lab9.1.csproj --configuration Release --verbosity normal
 
       - name: Create HTML report
         run: |
