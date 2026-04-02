@@ -11,7 +11,6 @@ env:
 
 jobs:
   build-and-test:
-    name: Build, Test & Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,120 +20,32 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore dependencies
-        run: dotnet restore src/lab9.1.csproj
+      - name: Restore
+        run: dotnet restore
 
-      - name: Build
-        run: dotnet build src/lab9.1.csproj --configuration Release --no-restore
+      - name: Build all
+        run: dotnet build --configuration Release --no-restore
 
       - name: Run tests with coverage
         run: |
-          dotnet test src/lab9.1.csproj \
+          dotnet test tests/lab9.1.Tests/lab9.1.Tests.csproj \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults \
-            --verbosity normal
-
-      - name: Debug - find coverage files
-        run: |
-          echo "=== Test Results ==="
-          ls -la ./TestResults/ || echo "No TestResults directory"
-          echo ""
-          echo "=== Coverage files ==="
-          find ./TestResults -name "*.xml" -exec echo "Found: {}" \;
-          find ./TestResults -name "*.cobertura.xml" -exec echo "Found cobertura: {}" \;
+            --settings coverlet.runsettings
 
       - name: Install ReportGenerator
         run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
-      - name: Generate detailed coverage report
+      - name: Generate coverage report
         run: |
-          # Поиск файла покрытия
-          COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" 2>/dev/null | head -1)
-          
-          if [ -n "$COVERAGE_FILE" ] && [ -f "$COVERAGE_FILE" ]; then
-            echo "✅ Found coverage file: $COVERAGE_FILE"
-            
-            # Генерация подробного отчета с исходным кодом
-            reportgenerator \
-              -reports:"$COVERAGE_FILE" \
-              -targetdir:"./DetailedCoverageReport" \
-              -reporttypes:"Html;HtmlInline;HtmlChart;Badges" \
-              -verbosity:Info \
-              -historydir:"./History"
-            
-            # Создание упрощенного отчета для быстрого просмотра
-            reportgenerator \
-              -reports:"$COVERAGE_FILE" \
-              -targetdir:"./coveragereport" \
-              -reporttypes:"Html;Badges" \
-              -verbosity:Info
-            
-            echo "✅ Detailed coverage report generated"
-            echo "📁 Open DetailedCoverageReport/index.html for line-by-line coverage"
-          else
-            echo "⚠️ No coverage file found"
-            mkdir -p ./coveragereport
-            echo '<html><body><h1>No coverage data available</h1></body></html>' > ./coveragereport/index.html
-          fi
+          COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" | head -1)
+          reportgenerator -reports:"$COVERAGE_FILE" -targetdir:"./DetailedCoverageReport" -reporttypes:"Html;HtmlInline;HtmlChart;Badges"
 
-      - name: Display coverage summary
-        run: |
-          COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" 2>/dev/null | head -1)
-          if [ -n "$COVERAGE_FILE" ] && [ -f "$COVERAGE_FILE" ]; then
-            echo "==========================================="
-            echo "📊 COVERAGE SUMMARY"
-            echo "==========================================="
-            # Извлечение процентов из XML
-            LINE_RATE=$(grep -o 'line-rate="[0-9.]*"' "$COVERAGE_FILE" | head -1 | cut -d'"' -f2)
-            BRANCH_RATE=$(grep -o 'branch-rate="[0-9.]*"' "$COVERAGE_FILE" | head -1 | cut -d'"' -f2)
-            
-            if [ -n "$LINE_RATE" ]; then
-              LINE_PERCENT=$(echo "$LINE_RATE * 100" | bc)
-              echo "📈 Line Coverage: ${LINE_PERCENT}%"
-            fi
-            if [ -n "$BRANCH_RATE" ]; then
-              BRANCH_PERCENT=$(echo "$BRANCH_RATE * 100" | bc)
-              echo "🎯 Branch Coverage: ${BRANCH_PERCENT}%"
-            fi
-          fi
-
-      - name: Upload detailed report
+      - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: detailed-coverage-report
+          name: coverage-reports
           path: ./DetailedCoverageReport
           retention-days: 7
-
-      - name: Upload simple report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: ./coveragereport
-          retention-days: 7
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: ./TestResults
-          retention-days: 7
-
-      - name: Show completion message
-        run: |
-          echo "==========================================="
-          echo "✅ CI/CD PIPELINE COMPLETED"
-          echo "==========================================="
-          echo "📁 Available artifacts:"
-          echo "   📄 coverage-report - Simple HTML report"
-          echo "   📄 detailed-coverage-report - Line-by-line coverage with source code"
-          echo "   📄 test-results - Raw test results"
-          echo ""
-          echo "🔍 To view uncovered lines:"
-          echo "   1. Download 'detailed-coverage-report'"
-          echo "   2. Extract ZIP file"
-          echo "   3. Open index.html"
-          echo "   4. Navigate to any .cs file"
-          echo "   5. Red lines = uncovered, Green lines = covered"
