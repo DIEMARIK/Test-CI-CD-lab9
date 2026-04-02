@@ -28,7 +28,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          dotnet test tests/lab9.1.Tests/lab9.1.Tests.csproj \
+          dotnet test tests/lab9.1.Tests/lab9.Tests.csproj \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage" \
