@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  DOTNET_VERSION: '8.0.x'
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -15,36 +18,53 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore lab9.1.sln
 
       - name: Build
-        run: dotnet build src/lab9.1.csproj --configuration Release
+        run: dotnet build lab9.1.sln --configuration Release --no-restore
 
       - name: Run tests with coverage
         run: |
-          dotnet test tests/lab9.1.Tests.csproj \
+          dotnet test tests/lab9.1.Tests/lab9.1.Tests.csproj \
             --configuration Release \
-            --verbosity normal \
+            --no-build \
             --collect:"XPlat Code Coverage" \
-            --settings:coverlet.runsettings
+            --results-directory ./TestResults
+
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
       - name: Generate coverage report
         run: |
-          # Устанавливаем ReportGenerator, если его нет
-          dotnet tool install -g dotnet-reportgenerator-globaltool
-
-          # Генерируем HTML‑отчёт из результатов Coverlet
-          reportgenerator \
-            -reports:**/coverage.cobertura.xml \
-            -targetdir:coveragereport \
-            -reporttypes:HTML
+          COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" | head -1)
+          
+          if [ -f "$COVERAGE_FILE" ]; then
+            reportgenerator -reports:"$COVERAGE_FILE" -targetdir:"./CoverageReport" -reporttypes:"Html"
+            echo "✅ Coverage report generated"
+            
+            # Показываем проценты покрытия
+            LINE_RATE=$(grep -o 'line-rate="[0-9.]*"' "$COVERAGE_FILE" | head -1 | cut -d'"' -f2)
+            echo "📈 Line Coverage: $(echo "$LINE_RATE * 100" | bc)%"
+          else
+            echo "⚠️ No coverage file found"
+            mkdir -p ./CoverageReport
+            echo "<html><body><h1>No coverage data</h1></body></html>" > ./CoverageReport/index.html
+          fi
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coveragereport/
-          retention-days: 14
+          path: ./CoverageReport
+          retention-days: 7
 
-      - name: Display coverage summary
-        run: cat coveragereport/index.html | grep -A 10 "Coverage Summary" || echo "Coverage summary not found"
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ./TestResults
+          retention-days: 7
