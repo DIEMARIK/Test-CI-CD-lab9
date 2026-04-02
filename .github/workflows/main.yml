@@ -22,24 +22,24 @@ jobs:
 
       # Восстанавливаем основной проект
       - name: Restore main project
-        run: dotnet restore src/lab9.1/lab9.1.csproj
+        run: dotnet restore src/lab9.1.csproj
 
       # Собираем основной проект
       - name: Build main project
-        run: dotnet build src/lab9.1/lab9.1.csproj --configuration Release --no-restore
+        run: dotnet build src/lab9.1.csproj --configuration Release --no-restore
 
       # Восстанавливаем тестовый проект
       - name: Restore test project
-        run: dotnet restore tests/lab9.1.Tests/lab9.1.Tests.csproj
+        run: dotnet restore tests/lab9.1.Tests.csproj
 
       # Собираем тестовый проект
       - name: Build test project
-        run: dotnet build tests/lab9.1.Tests/lab9.1.Tests.csproj --configuration Release --no-restore
+        run: dotnet build tests/lab9.1.Tests.csproj --configuration Release --no-restore
 
       # Запускаем тесты с покрытием
       - name: Run tests with coverage
         run: |
-          dotnet test tests/lab9.1.Tests/lab9.1.Tests.csproj \
+          dotnet test tests/lab9.1.Tests.csproj \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage" \
