@@ -30,16 +30,16 @@ jobs:
 
       # Восстанавливаем тестовый проект
       - name: Restore test project
-        run: dotnet restore tests/lab9.1.Tests.csproj
+        run: dotnet restore tests/lab9.Tests.csproj
 
       # Собираем тестовый проект
       - name: Build test project
-        run: dotnet build tests/lab9.1.Tests.csproj --configuration Release --no-restore
+        run: dotnet build tests/lab9.Tests.csproj --configuration Release --no-restore
 
       # Запускаем тесты с покрытием
       - name: Run tests with coverage
         run: |
-          dotnet test tests/lab9.1.Tests.csproj \
+          dotnet test tests/lab9.Tests.csproj \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage" \
