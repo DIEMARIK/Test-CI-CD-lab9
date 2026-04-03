@@ -1,4 +1,4 @@
-using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace lab9._1
 {
     [TestClass]
