@@ -22,48 +22,52 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore lab9.1.sln
 
-    # Собираем проект
+    # ВАЖНО: Собираем в Debug (для PDB файлов)
     - name: Build
-      run: dotnet build lab9.1.sln --no-restore --configuration Release
+      run: dotnet build lab9.1.sln --no-restore --configuration Debug
 
-    # Устанавливаем Coverlet (ВАЖНО: используем --version)
+    # Устанавливаем Coverlet
     - name: Install Coverlet
       run: |
         cd tests
         dotnet add package coverlet.collector --version 6.0.0
         cd ..
 
-    # ЗАПУСК ТЕСТОВ С ПОКРЫТИЕМ (ПРАВИЛЬНЫЙ СИНТАКСИС)
+    # ЗАПУСК ТЕСТОВ С ПОКРЫТИЕМ (ЯВНО УКАЗЫВАЕМ ПУТИ)
     - name: Run tests with coverage
       run: |
-        cd tests
-        dotnet test --no-build \
-          --configuration Release \
+        dotnet test tests/lab9.Tests.csproj \
+          --configuration Debug \
+          --no-build \
           --collect:"XPlat Code Coverage" \
-          --results-directory ../TestResults
-        cd ..
+          --results-directory ./TestResults \
+          --verbosity normal
+
+    # Показываем, какие файлы найдены (для диагностики)
+    - name: Debug - show files
+      run: |
+        echo "=== Поиск coverage файлов ==="
+        find ./TestResults -name "*.xml" -type f
+        echo "=== Содержимое TestResults ==="
+        ls -la ./TestResults/
 
     # Устанавливаем ReportGenerator
     - name: Install ReportGenerator
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-    # Ищем сгенерированный файл покрытия и конвертируем в HTML
+    # Генерируем HTML отчет с указанием папки с исходниками
     - name: Generate HTML report
       run: |
-        # Находим файл coverage.cobertura.xml (он может быть во вложенной папке)
-        COVERAGE_FILE=$(find ./TestResults -name "coverage.cobertura.xml" | head -1)
-        if [ -z "$COVERAGE_FILE" ]; then
-          echo "Файл покрытия не найден!"
-          exit 1
-        fi
-        echo "Найден файл: $COVERAGE_FILE"
+        COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" | head -1)
+        echo "Использую файл: $COVERAGE_FILE"
         
         reportgenerator \
           "-reports:$COVERAGE_FILE" \
           "-targetdir:./coveragereport" \
-          "-reporttypes:Html"
+          "-reporttypes:Html" \
+          "-sourcedirs:./src"
 
-    # Загружаем отчет как артефакт
+    # Загружаем отчет
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
