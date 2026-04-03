@@ -1,83 +1,61 @@
-name: CI/CD Pipeline
+name: CI/CD with Code Coverage
 
-on:  
+on:
   push:
-    branches: [ main, develop ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ main ]
-
-env:
-  DOTNET_VERSION: '8.0.x'
+    branches: [ "main", "master" ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x # или 6.0, 7.0, 9.0 — подставь свою версию
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+    # Восстанавливаем зависимости для ВСЕГО решения (он сам найдет все .csproj)
+    - name: Restore dependencies
+      run: dotnet restore lab9.1.sln
 
-      # Восстанавливаем основной проект
-      - name: Restore main project
-        run: dotnet restore src/lab9.1.csproj
+    # Собираем ВСЕ проекты в решении
+    - name: Build
+      run: dotnet build lab9.1.sln --no-restore --configuration Release
 
-      # Собираем основной проект
-      - name: Build main project
-        run: dotnet build src/lab9.1.csproj --configuration Release --no-restore
+    # Устанавливаем Coverlet (если еще не установлен в тестовом проекте)
+    - name: Install Coverlet
+      run: dotnet add tests/lab9.Tests.csproj package coverlet.collector
 
-      # Восстанавливаем тестовый проект
-      - name: Restore test project
-        run: dotnet restore tests/lab9.Tests.csproj
+    # ЗАПУСК ТЕСТОВ С ПОКРЫТИЕМ — УКАЗЫВАЕМ ПРЯМОЙ ПУТЬ К ТЕСТОВОМУ ПРОЕКТУ
+    - name: Run tests with coverage
+      run: |
+        dotnet test tests/lab9.Tests.csproj \
+          --no-build \
+          --configuration Release \
+          /p:CollectCoverage=true \
+          /p:CoverletOutputFormat=cobertura \
+          /p:CoverletOutput=./TestResults/ \
+          /p:Exclude="[xunit*]*"
 
-      # Собираем тестовый проект
-      - name: Build test project
-        run: dotnet build tests/lab9.Tests.csproj --configuration Release --no-restore
+    # Устанавливаем ReportGenerator для красивого HTML
+    - name: Install ReportGenerator
+      run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      # Запускаем тесты с покрытием
-      - name: Run tests with coverage
-        run: |
-          dotnet test tests/lab9.Tests.csproj \
-            --configuration Release \
-            --no-build \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./TestResults
+    # Генерируем HTML отчет
+    - name: Generate HTML report
+      run: |
+        reportgenerator \
+          "-reports:./TestResults/coverage.cobertura.xml" \
+          "-targetdir:./coveragereport" \
+          "-reporttypes:Html"
 
-      # Устанавливаем ReportGenerator
-      - name: Install ReportGenerator
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
-
-      # Генерируем отчет
-      - name: Generate coverage report
-        run: |
-          COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" | head -1)
-          
-          if [ -f "$COVERAGE_FILE" ]; then
-            reportgenerator -reports:"$COVERAGE_FILE" -targetdir:"./CoverageReport" -reporttypes:"Html"
-            echo "✅ Coverage report generated"
-            
-            # Показываем проценты
-            LINE_RATE=$(grep -o 'line-rate="[0-9.]*"' "$COVERAGE_FILE" | head -1 | cut -d'"' -f2)
-            echo "📈 Line Coverage: $(echo "$LINE_RATE * 100" | bc)%"
-          else
-            echo "⚠️ No coverage file found"
-            mkdir -p ./CoverageReport
-            echo "<html><body><h1>No coverage data</h1></body></html>" > ./CoverageReport/index.html
-          fi
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: ./CoverageReport
-          retention-days: 7
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: ./TestResults
-          retention-days: 7
+    # ЗАГРУЖАЕМ ОТЧЕТ КАК АРТЕФАКТ (это главное — ты увидишь его во вкладке Actions)
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: Code-Coverage-Report
+        path: coveragereport
