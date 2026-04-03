@@ -1,12 +1,12 @@
 name: CI/CD with Code Coverage
 
-on: 
+on:
   push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
 
-jobs: 
+jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
@@ -18,23 +18,7 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    # ПРОВЕРКА: какие пакеты установлены
-    - name: Check csproj files
-      run: |
-        echo "=== lab9.Tests.csproj ==="
-        cat tests/lab9.Tests.csproj
-
-    # ЯВНАЯ УСТАНОВКА ВСЕХ ПАКЕТОВ ДЛЯ ТЕСТОВ
-    - name: Install test packages
-      run: |
-        cd tests
-        dotnet add package Microsoft.NET.Test.Sdk --version 17.7.0
-        dotnet add package MSTest.TestAdapter --version 3.1.1
-        dotnet add package MSTest.TestFramework --version 3.1.1
-        dotnet add package coverlet.collector --version 6.0.0
-        cd ..
-
-    # Восстанавливаем зависимости
+    # Восстанавливаем зависимости (это должно установить все пакеты из csproj)
     - name: Restore dependencies
       run: dotnet restore lab9.1.sln
 
@@ -42,30 +26,24 @@ jobs:
     - name: Build
       run: dotnet build lab9.1.sln --no-restore --configuration Debug
 
-    # Запускаем тесты (без покрытия, для проверки)
-    - name: Run tests (basic)
-      run: |
-        cd tests
-        dotnet test --configuration Debug --verbosity normal --logger "console;verbosity=detailed"
-        cd ..
-
-    # Запускаем тесты с покрытием
+    # Запускаем тесты с покрытием (простая команда)
     - name: Run tests with coverage
       run: |
         dotnet test tests/lab9.Tests.csproj \
           --configuration Debug \
           --collect:"XPlat Code Coverage" \
           --results-directory ./TestResults \
-          --logger "trx;LogFileName=test_results.trx" \
-          --verbosity detailed
+          --verbosity normal
 
     # Находим файл покрытия
     - name: Find coverage file
       run: |
         echo "=== Поиск coverage файлов ==="
         find ./TestResults -name "*.cobertura.xml" -type f
-        echo "=== Все XML файлы ==="
-        find ./TestResults -name "*.xml" -type f
+        if [ -z "$(find ./TestResults -name '*.cobertura.xml' -type f)" ]; then
+          echo "Попробуем найти любой XML файл:"
+          find ./TestResults -name "*.xml" -type f
+        fi
 
     # Устанавливаем ReportGenerator
     - name: Install ReportGenerator
@@ -78,8 +56,6 @@ jobs:
         
         if [ -z "$COVERAGE_FILE" ]; then
           echo "❌ Файл покрытия не найден!"
-          echo "Содержимое TestResults:"
-          ls -laR ./TestResults/
           exit 1
         fi
         
