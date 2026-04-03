@@ -97,7 +97,13 @@ public class AuthenticationService
 
         target.ChangeRole(newRole);
     }
-
+    /// <summary>
+    /// Проверка на существования пользователя
+    /// </summary>
+    public User? FindUser(string username)
+    {
+        return users.FirstOrDefault(u => u.Username == username);
+    }
     /// <summary>
     /// Создает первого администратора.
     /// </summary>
