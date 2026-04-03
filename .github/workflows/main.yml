@@ -16,44 +16,54 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x # или 6.0, 7.0, 9.0 — подставь свою версию
+        dotnet-version: 8.0.x
 
-    # Восстанавливаем зависимости для ВСЕГО решения (он сам найдет все .csproj)
+    # Восстанавливаем зависимости
     - name: Restore dependencies
       run: dotnet restore lab9.1.sln
 
-    # Собираем ВСЕ проекты в решении
+    # Собираем проект
     - name: Build
       run: dotnet build lab9.1.sln --no-restore --configuration Release
 
-    # Устанавливаем Coverlet (если еще не установлен в тестовом проекте)
+    # Устанавливаем Coverlet (ВАЖНО: используем --version)
     - name: Install Coverlet
-      run: dotnet add tests/lab9.Tests.csproj package coverlet.collector
+      run: |
+        cd tests
+        dotnet add package coverlet.collector --version 6.0.0
+        cd ..
 
-    # ЗАПУСК ТЕСТОВ С ПОКРЫТИЕМ — УКАЗЫВАЕМ ПРЯМОЙ ПУТЬ К ТЕСТОВОМУ ПРОЕКТУ
+    # ЗАПУСК ТЕСТОВ С ПОКРЫТИЕМ (ПРАВИЛЬНЫЙ СИНТАКСИС)
     - name: Run tests with coverage
       run: |
-        dotnet test tests/lab9.Tests.csproj \
-          --no-build \
+        cd tests
+        dotnet test --no-build \
           --configuration Release \
-          /p:CollectCoverage=true \
-          /p:CoverletOutputFormat=cobertura \
-          /p:CoverletOutput=./TestResults/ \
-          /p:Exclude="[xunit*]*"
+          --collect:"XPlat Code Coverage" \
+          --results-directory ../TestResults
+        cd ..
 
-    # Устанавливаем ReportGenerator для красивого HTML
+    # Устанавливаем ReportGenerator
     - name: Install ReportGenerator
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-    # Генерируем HTML отчет
+    # Ищем сгенерированный файл покрытия и конвертируем в HTML
     - name: Generate HTML report
       run: |
+        # Находим файл coverage.cobertura.xml (он может быть во вложенной папке)
+        COVERAGE_FILE=$(find ./TestResults -name "coverage.cobertura.xml" | head -1)
+        if [ -z "$COVERAGE_FILE" ]; then
+          echo "Файл покрытия не найден!"
+          exit 1
+        fi
+        echo "Найден файл: $COVERAGE_FILE"
+        
         reportgenerator \
-          "-reports:./TestResults/coverage.cobertura.xml" \
+          "-reports:$COVERAGE_FILE" \
           "-targetdir:./coveragereport" \
           "-reporttypes:Html"
 
-    # ЗАГРУЖАЕМ ОТЧЕТ КАК АРТЕФАКТ (это главное — ты увидишь его во вкладке Actions)
+    # Загружаем отчет как артефакт
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
