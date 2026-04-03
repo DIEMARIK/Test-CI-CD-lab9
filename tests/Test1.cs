@@ -1,4 +1,5 @@
-﻿namespace lab9._1
+using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
+namespace lab9._1
 {
     [TestClass]
     public class UserTests
