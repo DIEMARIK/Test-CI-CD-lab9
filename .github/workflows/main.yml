@@ -1,6 +1,6 @@
 name: CI/CD with Code Coverage
 
-on:
+on: 
   push:
     branches: [ "main", "master" ]
   pull_request:
