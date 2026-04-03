@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
-jobs: 
+jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
@@ -22,44 +22,59 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore lab9.1.sln
 
-    # ВАЖНО: Собираем в Debug (для PDB файлов)
+    # Собираем проект в Debug
     - name: Build
       run: dotnet build lab9.1.sln --no-restore --configuration Debug
 
-    # Устанавливаем Coverlet
-    - name: Install Coverlet
+    # ПРОВЕРКА: показываем, какие тесты найдены
+    - name: List test files
+      run: |
+        echo "=== Файлы в tests ==="
+        ls -la tests/
+        echo "=== Поиск тестов ==="
+        find tests -name "*.cs" -type f
+
+    # Запускаем тесты (упрощенная команда)
+    - name: Run tests
       run: |
         cd tests
-        dotnet add package coverlet.collector --version 6.0.0
+        dotnet test --configuration Debug --verbosity normal
         cd ..
 
-    # ЗАПУСК ТЕСТОВ С ПОКРЫТИЕМ (ЯВНО УКАЗЫВАЕМ ПУТИ)
+    # Запускаем тесты с покрытием
     - name: Run tests with coverage
       run: |
         dotnet test tests/lab9.Tests.csproj \
           --configuration Debug \
-          --no-build \
           --collect:"XPlat Code Coverage" \
           --results-directory ./TestResults \
-          --verbosity normal
+          --verbosity detailed
 
-    # Показываем, какие файлы найдены (для диагностики)
-    - name: Debug - show files
+    # Находим файл покрытия
+    - name: Debug coverage file
       run: |
         echo "=== Поиск coverage файлов ==="
         find ./TestResults -name "*.xml" -type f
-        echo "=== Содержимое TestResults ==="
-        ls -la ./TestResults/
+        echo "=== Структура TestResults ==="
+        tree ./TestResults || ls -laR ./TestResults
 
     # Устанавливаем ReportGenerator
     - name: Install ReportGenerator
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-    # Генерируем HTML отчет с указанием папки с исходниками
+    # Генерируем отчет
     - name: Generate HTML report
       run: |
         COVERAGE_FILE=$(find ./TestResults -name "*.cobertura.xml" | head -1)
-        echo "Использую файл: $COVERAGE_FILE"
+        
+        if [ -z "$COVERAGE_FILE" ]; then
+          echo "❌ Файл покрытия не найден!"
+          echo "Ищем любой XML файл:"
+          find ./TestResults -name "*.xml"
+          exit 1
+        fi
+        
+        echo "✅ Использую: $COVERAGE_FILE"
         
         reportgenerator \
           "-reports:$COVERAGE_FILE" \
@@ -73,3 +88,4 @@ jobs:
       with:
         name: Code-Coverage-Report
         path: coveragereport
+        retention-days: 7
