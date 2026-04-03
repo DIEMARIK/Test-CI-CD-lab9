@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <!-- Ссылка на основной проект -->
-    <ProjectReference Include="..\..\src\lab9.1.csproj" />
+    <ProjectReference Include="..\src\lab9.1.csproj" />
   </ItemGroup>
 
 </Project>
